@@ -1,0 +1,73 @@
+---
+image: jonatanblue/gitlab-ci-terraform:latest
+
+stages:
+  - plan
+  - apply
+
+cache:
+  paths:
+    - .terraform
+  key: "$CI_BUILD_REPO"
+
+plan_development:
+  stage: plan
+  script:
+    - ls -la
+    - ls ./vars/
+    - terraform init -backend=true -get=true -input=false  -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+    - terraform plan -out planfile  -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+  when: always
+  environment:
+    name: development
+    url: https://terraformdev.ayerst.net
+  artifacts:
+    paths:
+      - planfile
+
+plan_production:
+  stage: plan
+  script:
+    - ls -la
+    - ls ./vars/
+    - terraform init -backend=true -get=true -input=false  -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+    - terraform plan -out planfile  -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+  when: always
+  environment:
+    name: production
+    url: https://terraform.ayerst.net
+  artifacts:
+    paths:
+      - planfile
+
+apply_development:
+  stage: apply
+  variables:
+    VARFILE: "./vars/development.tfvars"
+  script:
+    - terraform init -backend=true -get=true -input=false -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+    - terraform apply  -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+  when: always
+  environment:
+    name: development
+    url: https://terraformdev.ayerst.net
+  only: 
+   - master
+  dependencies:
+   - plan_development
+
+apply_production:
+  stage: apply
+  variables:
+    VARFILE: "./vars/production.tfvars"
+  script:
+    - terraform init -backend=true -get=true -input=false -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+    - terraform apply  -var-file ./vars/$CI_ENVIRONMENT_NAME.tfvars
+  when: manual
+  environment:
+    name: production
+    url: https://terraform.ayerst.net
+  only: 
+   - master
+  dependencies:
+   - plan_production
